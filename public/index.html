@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Cognitive Label Studio</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+body{background:#f0f0f0;color:#222;font-size:14px;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+/*  Topbar  */
+#topbar{display:flex;align-items:center;gap:6px;padding:0 14px;height:46px;background:#fff;border-bottom:1px solid #ddd;flex-shrink:0;flex-wrap:wrap;}
+#topbar .logo{font-size:15px;font-weight:600;margin-right:6px;color:#111;}
+.tb-group{display:flex;gap:4px;align-items:center;}
+.tb-sep{width:1px;height:24px;background:#ddd;margin:0 4px;}
+.tb-btn{font-size:12px;padding:5px 10px;border:1px solid #ccc;border-radius:6px;background:#fafafa;color:#333;cursor:pointer;transition:background .15s;}
+.tb-btn:hover{background:#eee;}
+.tb-btn.active{background:#1a8a5e;color:#fff;border-color:#1a8a5e;}
+.tb-btn.danger{background:#fff;color:#c0392b;border-color:#e0b4b0;}
+.tb-btn.danger:hover{background:#fdecea;}
+#btn-print{margin-left:auto;font-size:13px;font-weight:600;padding:7px 18px;border-radius:6px;background:#1a8a5e;color:#fff;border:none;cursor:pointer;transition:background .15s;}
+#btn-print:hover{background:#137a51;}
+#btn-print:disabled{background:#aaa;cursor:default;}
+#print-status{font-size:12px;padding:4px 10px;border-radius:6px;display:none;}
+#print-status.ok{background:#e6f9ef;color:#1a7a4a;}
+#print-status.err{background:#fdecea;color:#c0392b;}
+
+/*  Layout  */
+#main{display:grid;grid-template-columns:200px 1fr 230px;flex:1;overflow:hidden;}
+
+/*  Sidebar left  */
+.sidebar{background:#fafafa;border-right:1px solid #ddd;padding:12px;overflow-y:auto;font-size:12px;}
+.sidebar-r{background:#fafafa;border-left:1px solid #ddd;padding:12px;overflow-y:auto;font-size:12px;}
+.s-section{margin-bottom:16px;}
+.s-title{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#888;margin-bottom:8px;}
+.elem-btn{display:flex;align-items:center;gap:8px;width:100%;padding:7px 10px;margin-bottom:5px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;color:#222;text-align:left;transition:background .12s;}
+.elem-btn:hover{background:#eaf7f1;border-color:#1a8a5e;}
+.elem-icon{width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+label{display:block;font-size:11px;color:#666;margin-bottom:2px;}
+input[type=text],input[type=number],select,textarea{width:100%;padding:5px 7px;border:1px solid #ccc;border-radius:5px;font-size:12px;background:#fff;color:#222;outline:none;}
+input[type=text]:focus,input[type=number]:focus,select:focus,textarea:focus{border-color:#1a8a5e;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;}
+.prop-row{margin-bottom:8px;}
+.field-chip{display:inline-block;font-size:10px;padding:2px 8px;border-radius:999px;background:#e6f9ef;color:#1a7a4a;margin-bottom:8px;}
+.del-btn{width:100%;padding:6px;border:1px solid #e0b4b0;border-radius:5px;background:#fff;color:#c0392b;font-size:12px;cursor:pointer;margin-top:4px;}
+.del-btn:hover{background:#fdecea;}
+
+/*  Canvas area  */
+#canvas-area{display:flex;flex-direction:column;align-items:center;justify-content:center;background:#e0e0e0;overflow:auto;position:relative;padding:20px;}
+#canvas-info{font-size:11px;color:#666;margin-bottom:8px;text-align:center;}
+#label-canvas{background:#fff;position:relative;box-shadow:0 2px 10px rgba(0,0,0,.18);overflow:hidden;cursor:default;}
+#label-canvas .el{position:absolute;cursor:move;user-select:none;border:1.5px solid transparent;}
+#label-canvas .el:hover{border-color:rgba(26,138,94,.5);}
+#label-canvas .el.selected{border:1.5px dashed #1a8a5e !important;}
+#label-canvas .el .resize-handle{position:absolute;right:-5px;bottom:-5px;width:10px;height:10px;background:#1a8a5e;border-radius:2px;cursor:se-resize;display:none;}
+#label-canvas .el.selected .resize-handle{display:block;}
+.el-text{white-space:nowrap;overflow:hidden;display:flex;align-items:center;}
+.el-barcode{display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px;color:#333;background:#fff;}
+.el-barcode canvas{max-width:100%;max-height:100%;}
+.el-qr{display:flex;align-items:center;justify-content:center;background:#fff;}
+.el-line{background:#333;}
+.el-box{background:transparent;border:2px solid #333 !important;}
+.ruler{background:#ddd;color:#999;font-size:8px;}
+#ruler-h{height:16px;position:absolute;left:0;right:0;top:0;}
+#ruler-v{width:16px;position:absolute;left:0;top:16px;bottom:0;}
+.canvas-wrap{position:relative;}
+
+/*  ZPL Modal  */
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center;}
+#modal-overlay.open{display:flex;}
+#modal{background:#fff;border-radius:8px;padding:20px;width:600px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;}
+#modal h2{font-size:15px;margin-bottom:10px;}
+#zpl-out{flex:1;font-family:monospace;font-size:11px;white-space:pre;background:#f4f4f4;border:1px solid #ddd;border-radius:5px;padding:10px;overflow:auto;min-height:200px;max-height:50vh;}
+.modal-actions{display:flex;gap:8px;margin-top:12px;}
+.modal-btn{padding:7px 16px;border-radius:5px;border:1px solid #ccc;background:#fafafa;cursor:pointer;font-size:13px;}
+.modal-btn.primary{background:#1a8a5e;color:#fff;border:none;}
+
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th,td{border:1px solid #ddd;padding:4px 7px;text-align:left;}
+th{background:#f4f4f4;font-weight:600;}
+tr:nth-child(even){background:#fafafa;}
+.csv-actions{display:flex;gap:8px;align-items:center;}
+.logo-picker{display:flex;gap:8px;align-items:center;margin:8px 0 10px;}
+.logo-picker select{flex:1;min-width:0;padding:5px 8px;border:1px solid #d6d6d6;border-radius:5px;background:#fff;font-size:12px;}
+
+/*  Printer settings  */
+#printer-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ccc;margin-right:6px;vertical-align:middle;transition:background .3s;}
+#printer-dot.ok{background:#1a8a5e;}
+#printer-dot.err{background:#c0392b;}
+#printer-dot.pending{background:#fa0;}
+
+/*  Snap grid  */
+.snap-line{position:absolute;background:rgba(26,138,94,.4);pointer-events:none;z-index:50;}
+#snap-line-v{width:1px;height:100%;display:none;}
+#snap-line-h{height:1px;width:100%;display:none;}
+</style>
+</head>
+<body>
+
+<!--  TOPBAR  -->
+<div id="topbar">
+  <span class="logo">Label Studio</span>
+  <div class="tb-sep"></div>
+  <div class="tb-group">
+    <button class="tb-btn" onclick="addElement('text')">+ Text</button>
+    <button class="tb-btn" onclick="addElement('barcode')">Barcode</button>
+    <button class="tb-btn" onclick="addElement('qr')">QR</button>
+    <button class="tb-btn" onclick="addElement('line')">Line</button>
+    <button class="tb-btn" onclick="addElement('box')">Box</button>
+  </div>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" onclick="showZPL()">ZPL preview</button>
+  <button class="tb-btn" onclick="downloadLabel()">Download label</button>
+  <button class="tb-btn" onclick="promptLabelUpload()">Upload label</button>
+  <div id="print-status"></div>
+  <button id="btn-print" onclick="printLabel()">Print Label</button>
+</div>
+
+<!--  MAIN  -->
+<div id="main">
+
+  <!-- Left sidebar: label settings + element list -->
+  <div class="sidebar" id="sidebar-left">
+    <div class="s-section">
+      <div class="s-title">Printer</div>
+      <div class="prop-row">
+        <label>IP address</label>
+        <input type="text" id="printer-ip" value="10.1.3.162" placeholder="e.g. 10.1.3.162"/>
+      </div>
+      <div class="row2">
+        <div><label>Port</label><input type="number" id="printer-port" value="9100"/></div>
+        <div><label>Copies</label><input type="number" id="copies" value="1" min="1" max="999"/></div>
+      </div>
+      <div class="row2">
+        <div><label>Print offset X (dots)</label><input type="number" id="print-offset-x" value="-15" step="1" min="-20" max="20"/></div>
+        <div><label>Print offset Y (dots, negative moves up)</label><input type="number" id="print-offset-y" value="-10" step="1" min="-20" max="20"/></div>
+      </div>
+      <div class="prop-row">
+        <label>Command language</label>
+        <select id="printer-language" onchange="syncDpiForLanguage()">
+          <option value="cpl" selected>CPL (Cognitive)</option>
+          <option value="zpl">ZPL</option>
+        </select>
+      </div>
+      <button class="tb-btn" style="width:100%;margin-top:2px;" onclick="testConnection()">
+        <span id="printer-dot"></span>Test connection
+      </button>
+    </div>
+
+    <div class="s-section">
+      <div class="s-title">Label size</div>
+      <div class="row2">
+        <div><label>Width (in)</label><input type="number" id="label-w" value="2.24" step="0.01" min="0.5" max="4" onchange="rebuildCanvas()"/></div>
+        <div><label>Height (in)</label><input type="number" id="label-h" value="0.90" step="0.01" min="0.5" max="6" onchange="rebuildCanvas()"/></div>
+      </div>
+      <div class="prop-row">
+        <label>Printer DPI</label>
+        <select id="label-dpi" onchange="rebuildCanvas()">
+          <option value="203" selected>203 dpi</option>
+          <option value="300">300 dpi</option>
+        </select>
+      </div>
+      <div class="prop-row">
+        <label>Screen scale</label>
+        <select id="canvas-scale" onchange="rebuildCanvas()">
+          <option value="1">1x (actual ZPL dots)</option>
+          <option value="1.5" selected>1.5x (comfortable)</option>
+          <option value="2">2x (zoom in)</option>
+          <option value="0.75">0.75x (zoom out)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="s-section">
+      <div class="s-title">Elements (<span id="el-count">0</span>)</div>
+      <div class="logo-picker">
+        <button class="tb-btn" type="button" onclick="toggleLogoPicker()">+ Logo</button>
+        <select id="logo-select" style="display:none;" onchange="addSelectedLogo(this.value)"></select>
+      </div>
+      <div id="element-list"></div>
+    </div>
+  </div>
+
+  <!-- Canvas -->
+  <div id="canvas-area">
+    <div id="canvas-info"></div>
+    <div class="canvas-wrap" id="canvas-wrap">
+      <div id="label-canvas"></div>
+    </div>
+  </div>
+
+  <!-- Right sidebar: properties -->
+  <div class="sidebar-r" id="sidebar-right">
+    <div id="props-panel">
+      <div class="s-title">Properties</div>
+      <p style="color:#999;font-size:12px;">Click an element to edit its properties.</p>
+    </div>
+  </div>
+</div>
+
+<!--  ZPL MODAL  -->
+<div id="modal-overlay">
+  <div id="modal">
+    <h2>ZPL Preview</h2>
+    <pre id="zpl-out"></pre>
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="copyZPL()">Copy to clipboard</button>
+      <button class="modal-btn" onclick="document.getElementById('modal-overlay').classList.remove('open')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- JsBarcode for rendering barcode preview -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+<!-- qrcode for QR preview -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<input id="label-file-input" type="file" accept="application/json,.json" style="display:none;" onchange="handleLabelUpload(event)" />
+
+<script>
+// 
+//  State
+// 
+let elements = [];
+let selectedId = null;
+let nextId = 1;
+let availableLogos = [];
+const SNAP_DEADZONE_DOTS = 6;
+const CPL_TEXT_FONT_SIZES = [5, 7, 8, 12, 16, 23, 31];
+
+function normalizeFontSize(size){
+  const target = Math.max(5, Math.round(size || 12));
+  let best = CPL_TEXT_FONT_SIZES[0];
+  let bestDelta = Math.abs(target - best);
+  for(const s of CPL_TEXT_FONT_SIZES){
+    const d = Math.abs(target - s);
+    if(d < bestDelta){
+      best = s;
+      bestDelta = d;
+    }
+  }
+  return best;
+}
+
+function fontSizeOptionsHtml(selected){
+  const current = normalizeFontSize(selected);
+  return CPL_TEXT_FONT_SIZES
+    .map(s => `<option value="${s}" ${s===current?'selected':''}>${s} dots</option>`)
+    .join('');
+}
+
+function logoOptionsHtml(selected){
+  if (!availableLogos.length) {
+    return '<option value="">No logos found</option>';
+  }
+  const current = selected || availableLogos[0].name;
+  return ['<option value="">Select a logo</option>']
+    .concat(availableLogos.map(logo => {
+      const label = logo.width && logo.height ? `${logo.name} (${logo.width}x${logo.height})` : logo.name;
+      return `<option value="${escH(logo.name)}" ${logo.name === current ? 'selected' : ''}>${escH(label)}</option>`;
+    }))
+    .join('');
+}
+
+async function loadLogos(){
+  try{
+    const r = await fetch('/api/logos');
+    const d = await r.json();
+    availableLogos = Array.isArray(d.logos) ? d.logos : [];
+  }catch(e){
+    availableLogos = [];
+  }
+  renderLogoPicker();
+}
+
+function renderLogoPicker(){
+  const select = document.getElementById('logo-select');
+  if (!select) return;
+  select.innerHTML = logoOptionsHtml(select.value);
+  const isOpen = select.dataset.open === 'true';
+  select.style.display = availableLogos.length && isOpen ? 'inline-block' : 'none';
+}
+
+function toggleLogoPicker(){
+  const select = document.getElementById('logo-select');
+  if (!select) return;
+  if (!availableLogos.length) return;
+  const showing = select.dataset.open === 'true';
+  select.dataset.open = showing ? 'false' : 'true';
+  select.style.display = showing ? 'none' : 'inline-block';
+  if (!showing && !select.value && availableLogos[0]) {
+    select.value = availableLogos[0].name;
+  }
+}
+
+function addSelectedLogo(name){
+  if (!name) return;
+  addLogoElement(name);
+  const select = document.getElementById('logo-select');
+  if (select) {
+    select.value = '';
+    select.dataset.open = 'false';
+    select.style.display = 'none';
+  }
+}
+
+function addLogoElement(name){
+  const info = availableLogos.find(logo => logo.name === name) || {};
+  const baseWidth = info.width ? Math.max(80, Math.min(240, Math.round(info.width * 0.5))) : 160;
+  const aspect = info.width && info.height ? (info.height / info.width) : (1 / 3);
+  const el = {
+    type: 'logo',
+    id: nextId++,
+    x: 30,
+    y: 30,
+    w: baseWidth,
+    h: Math.max(24, Math.round(baseWidth * aspect)),
+    logoName: name
+  };
+  elements.push(el);
+  selectedId = el.id;
+  renderAll();
+  updatePropsPanel();
+}
+
+function getDPI(){ return parseInt(document.getElementById('label-dpi').value); }
+function getScale(){ return parseFloat(document.getElementById('canvas-scale').value); }
+function getLabelW(){ return parseFloat(document.getElementById('label-w').value); }
+function getLabelH(){ return parseFloat(document.getElementById('label-h').value); }
+function getCanvasW(){ return Math.round(getLabelW() * getDPI()); }
+function getCanvasH(){ return Math.round(getLabelH() * getDPI()); }
+
+function getElementSize(el){
+  if(el.type === 'line') return { w: Math.max(1, el.w || 200), h: Math.max(1, el.lineHeight || 2) };
+  if(el.type === 'qr') return { w: Math.max(1, el.w || 80), h: Math.max(1, el.h || el.w || 80) };
+  if(el.type === 'text') return { w: Math.max(1, el.w || 200), h: Math.max(1, el.h || 40) };
+  if(el.type === 'box') return { w: Math.max(1, el.w || 100), h: Math.max(1, el.h || 50) };
+  if(el.type === 'barcode') return { w: Math.max(1, el.w || 250), h: Math.max(1, el.h || 120) };
+  if(el.type === 'logo') return { w: Math.max(1, el.w || 120), h: Math.max(1, el.h || 60) };
+  return { w: Math.max(1, el.w || 100), h: Math.max(1, el.h || 50) };
+}
+
+function ensureSnapLines(){
+  const canvas = document.getElementById('label-canvas');
+  let v = document.getElementById('snap-line-v');
+  let h = document.getElementById('snap-line-h');
+  if(!v){
+    v = document.createElement('div');
+    v.id = 'snap-line-v';
+    v.className = 'snap-line';
+    canvas.appendChild(v);
+  }
+  if(!h){
+    h = document.createElement('div');
+    h.id = 'snap-line-h';
+    h.className = 'snap-line';
+    canvas.appendChild(h);
+  }
+}
+
+function hideSnapLines(){
+  const v = document.getElementById('snap-line-v');
+  const h = document.getElementById('snap-line-h');
+  if(v) v.style.display = 'none';
+  if(h) h.style.display = 'none';
+}
+
+function updateSnapLines(xCenterDots, yCenterDots){
+  ensureSnapLines();
+  const scale = getScale();
+  const v = document.getElementById('snap-line-v');
+  const h = document.getElementById('snap-line-h');
+  if(v){
+    if(typeof xCenterDots === 'number'){
+      v.style.display = 'block';
+      v.style.left = (xCenterDots * scale) + 'px';
+      v.style.top = '0';
+    } else {
+      v.style.display = 'none';
+    }
+  }
+  if(h){
+    if(typeof yCenterDots === 'number'){
+      h.style.display = 'block';
+      h.style.top = (yCenterDots * scale) + 'px';
+      h.style.left = '0';
+    } else {
+      h.style.display = 'none';
+    }
+  }
+}
+
+function findSnapTarget(value, candidates){
+  let best = null;
+  let bestDelta = SNAP_DEADZONE_DOTS + 1;
+  for(const c of candidates){
+    const d = Math.abs(value - c);
+    if(d < bestDelta){
+      bestDelta = d;
+      best = c;
+    }
+  }
+  return bestDelta <= SNAP_DEADZONE_DOTS ? best : null;
+}
+
+// 
+//  Canvas bootstrap
+// 
+function rebuildCanvas(){
+  const canvas = document.getElementById('label-canvas');
+  const scale = getScale();
+  const W = getCanvasW();
+  const H = getCanvasH();
+  canvas.style.width  = (W * scale) + 'px';
+  canvas.style.height = (H * scale) + 'px';
+  document.getElementById('canvas-info').textContent =
+    `${getLabelW()}"x${getLabelH()}" @ ${getDPI()} dpi - ${W}x${H} dots`;
+  // re-render all elements
+  renderAll();
+}
+
+// 
+//  Render helpers
+// 
+function renderAll(){
+  const canvas = document.getElementById('label-canvas');
+  canvas.innerHTML = '';
+  elements.forEach(el => renderElement(el));
+  updateElementList();
+}
+
+function renderElement(el){
+  const canvas = document.getElementById('label-canvas');
+  const scale = getScale();
+  const div = document.createElement('div');
+  div.className = 'el' + (el.id === selectedId ? ' selected' : '');
+  div.dataset.id = el.id;
+  div.style.left   = (el.x * scale) + 'px';
+  div.style.top    = (el.y * scale) + 'px';
+
+  if(el.type === 'text'){
+    div.className += ' el-text';
+    div.style.width    = ((el.w || 200) * scale) + 'px';
+    div.style.height   = ((el.h || 40) * scale) + 'px';
+    div.style.fontSize = (el.fontSize * scale) + 'px';
+    div.style.fontWeight = el.bold ? '700' : '400';
+    div.style.whiteSpace = 'nowrap';
+    div.style.overflow = 'hidden';
+    div.textContent = el.value || '(text)';
+  } else if(el.type === 'logo'){
+    div.className += ' el-logo';
+    div.style.width  = ((el.w || 120) * scale) + 'px';
+    div.style.height = ((el.h || 60) * scale) + 'px';
+    div.style.padding = '0';
+    const img = document.createElement('img');
+    img.alt = el.logoName || 'Logo';
+    img.src = `/logos/${encodeURIComponent(el.logoName || '')}`;
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.objectFit = 'contain';
+    img.style.display = 'block';
+    div.appendChild(img);
+  } else if(el.type === 'barcode'){
+    div.className += ' el-barcode';
+    div.style.width  = ((el.w || 250) * scale) + 'px';
+    div.style.height = ((el.h || 120) * scale) + 'px';
+    const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.style.width = '100%';
+    svg.style.height = '100%';
+    svg.setAttribute('preserveAspectRatio', 'none');
+    div.appendChild(svg);
+    try{
+      const fmt = {code128:'CODE128',ean13:'EAN13',upca:'UPC',code39:'CODE39'}[el.symbology||'code128']||'CODE128';
+      const narrow = estimateNarrowBarFromWidth(el);
+      JsBarcode(svg, el.value||'123456789',{
+        format: fmt,
+        width: narrow,
+        height: Math.max(10, Math.round(el.h || 120)),
+        displayValue: false,
+        background: '#ffffff',
+        margin: 0
+      });
+      const rawW = parseFloat(svg.getAttribute('width')) || 1;
+      const rawH = parseFloat(svg.getAttribute('height')) || 1;
+      svg.setAttribute('viewBox', `0 0 ${rawW} ${rawH}`);
+      svg.removeAttribute('width');
+      svg.removeAttribute('height');
+      svg.style.width = '100%';
+      svg.style.height = '100%';
+    }catch(e){
+      div.textContent = 'Invalid barcode value';
+      div.style.fontSize='10px';div.style.color='red';
+    }
+  } else if(el.type === 'qr'){
+    div.className += ' el-qr';
+    const sz = Math.round((el.w || 80) * scale);
+    div.style.width  = sz + 'px';
+    div.style.height = sz + 'px';
+    const qDiv = document.createElement('div');
+    div.appendChild(qDiv);
+    try{
+      new QRCode(qDiv,{text:el.value||'https://example.com',width:sz,height:sz,correctLevel:QRCode.CorrectLevel.M});
+    }catch(e){}
+  } else if(el.type === 'line'){
+    div.className += ' el-line';
+    div.style.width  = ((el.w || 200) * scale) + 'px';
+    div.style.height = ((el.lineHeight || 2) * scale) + 'px';
+    div.style.background = '#333';
+    div.style.cursor = 'move';
+  } else if(el.type === 'box'){
+    div.className += ' el-box';
+    div.style.width  = ((el.w || 100) * scale) + 'px';
+    div.style.height = ((el.h || 50) * scale) + 'px';
+    div.style.border = ((el.thickness||2)*scale) + 'px solid #333';
+    div.style.background = 'transparent';
+  }
+
+  // resize handle
+  const rh = document.createElement('div');
+  rh.className = 'resize-handle';
+  div.appendChild(rh);
+
+  attachDrag(div, el);
+  attachResize(rh, div, el);
+  div.addEventListener('mousedown', e => { e.stopPropagation(); selectElement(el.id); });
+  div.addEventListener('click', e => e.stopPropagation());
+  canvas.appendChild(div);
+}
+
+// 
+//  Drag & drop
+// 
+function attachDrag(div, el){
+  div.addEventListener('mousedown', e => {
+    if(e.target.classList.contains('resize-handle')) return;
+    e.preventDefault();
+    const scale = getScale();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const origX = el.x;
+    const origY = el.y;
+    const sz = getElementSize(el);
+    const centerCandidatesX = [Math.round(getCanvasW() / 2)];
+    const centerCandidatesY = [Math.round(getCanvasH() / 2)];
+    for(const other of elements){
+      if(other.id === el.id) continue;
+      const os = getElementSize(other);
+      centerCandidatesX.push(Math.round((other.x || 0) + os.w / 2));
+      centerCandidatesY.push(Math.round((other.y || 0) + os.h / 2));
+    }
+    const onMove = me => {
+      const dx = (me.clientX - startX) / scale;
+      const dy = (me.clientY - startY) / scale;
+      let nextX = Math.max(0, Math.round(origX + dx));
+      let nextY = Math.max(0, Math.round(origY + dy));
+
+      const movingCenterX = Math.round(nextX + sz.w / 2);
+      const movingCenterY = Math.round(nextY + sz.h / 2);
+      const snapX = findSnapTarget(movingCenterX, centerCandidatesX);
+      const snapY = findSnapTarget(movingCenterY, centerCandidatesY);
+
+      if(snapX !== null) nextX = Math.max(0, Math.round(snapX - sz.w / 2));
+      if(snapY !== null) nextY = Math.max(0, Math.round(snapY - sz.h / 2));
+
+      el.x = nextX;
+      el.y = nextY;
+      div.style.left = (el.x * scale) + 'px';
+      div.style.top  = (el.y * scale) + 'px';
+      updateSnapLines(snapX, snapY);
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      hideSnapLines();
+      updatePropsPanel();
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
+function attachResize(handle, div, el){
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault(); e.stopPropagation();
+    const scale = getScale();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const origW = el.w || 100;
+    const origH = el.h || 50;
+    const onMove = me => {
+      const dx = (me.clientX - startX) / scale;
+      const dy = (me.clientY - startY) / scale;
+      el.w = Math.max(20, Math.round(origW + dx));
+      if(el.type !== 'line') el.h = Math.max(10, Math.round(origH + dy));
+      if(el.type === 'barcode') {
+        el.barcodeHeight = Math.max(10, el.h || 10);
+        el.narrowBar = estimateNarrowBarFromWidth(el);
+      }
+      if(el.type === 'qr') {
+        const qSize = Math.max(20, Math.min(el.w || 80, el.h || 80));
+        el.magnification = Math.max(1, Math.min(10, Math.round(qSize / 24)));
+      }
+      div.style.width  = (el.w * scale) + 'px';
+      div.style.height = (el.h * scale) + 'px';
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      renderAll();
+      updatePropsPanel();
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
+// 
+//  Select / deselect
+// 
+function selectElement(id){
+  selectedId = id;
+  // Don't renderAll() - just update CSS classes to show selection
+  // This keeps elements in DOM so drag handlers work properly
+  document.querySelectorAll('#label-canvas .el').forEach(div => {
+    if(div.dataset.id === String(id)){
+      div.classList.add('selected');
+    } else {
+      div.classList.remove('selected');
+    }
+  });
+  updatePropsPanel();
+}
+document.getElementById('label-canvas').addEventListener('mousedown', () => {
+  selectedId = null;
+  hideSnapLines();
+  renderAll();
+  updatePropsPanel();
+});
+
+// 
+//  Add element
+// 
+function addElement(type){
+  const dpi = getDPI();
+  const defaults = {
+    text:    { type:'text',    x:30, y:30, w:200, h:40, value:'Text', fontSize:23, bold:false },
+    barcode: { type:'barcode', x:30, y:30, w:260, h:120, value:'123456789', symbology:'code128', narrowBar:3, barcodeHeight:80 },
+    qr:      { type:'qr',     x:30, y:30, w:90,  h:90,  value:'https://example.com', magnification:4 },
+    line:    { type:'line',   x:20, y:100, w:dpi*getLabelW()-40, h:2, lineHeight:2 },
+    box:     { type:'box',    x:20, y:20, w:120, h:70, thickness:2 },
+    logo:    { type:'logo',   x:30, y:30, w:160, h:60, logoName:availableLogos[0]?.name || '' },
+  };
+  const el = { ...defaults[type], id: nextId++ };
+  elements.push(el);
+  selectedId = el.id;
+  renderAll();
+  updatePropsPanel();
+}
+
+// 
+//  Element list (left sidebar)
+// 
+function updateElementList(){
+  const list = document.getElementById('element-list');
+  document.getElementById('el-count').textContent = elements.length;
+  list.innerHTML = '';
+  elements.forEach(el => {
+    const btn = document.createElement('div');
+    btn.style.cssText = `display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:5px;cursor:pointer;font-size:12px;color:#333;border:1px solid ${el.id===selectedId?'#1a8a5e':'#ddd'};background:${el.id===selectedId?'#eaf7f1':'#fff'};margin-bottom:4px;`;
+    const icons = {text:'T',barcode:'B',qr:'Q',line:'-',box:'[]',logo:'L'};
+    const label = el.type === 'logo' ? (el.logoName || 'logo') : (el.value ? el.value.toString().substring(0,20) : el.type);
+    btn.innerHTML = `<span style="font-weight:600;color:#888;width:16px;">${icons[el.type]||'?'}</span><span>${escH(label)}</span>`;
+    btn.addEventListener('click', () => selectElement(el.id));
+    list.appendChild(btn);
+  });
+}
+
+// 
+//  Properties panel
+// 
+function updatePropsPanel(){
+  const panel = document.getElementById('props-panel');
+  if(!selectedId){ panel.innerHTML = '<div class="s-title">Properties</div><p style="color:#999;font-size:12px;">Click an element to edit.</p>'; return; }
+  const el = elements.find(e => e.id === selectedId);
+  if(!el) return;
+
+  let html = `<div class="s-title">Properties <span class="field-chip">${el.type}</span></div>`;
+
+  // Position / size (common)
+  html += `<div class="row2">
+    <div><label>X (dots)</label><input type="number" id="p-x" value="${el.x}" onchange="setProp('x',+this.value)"/></div>
+    <div><label>Y (dots)</label><input type="number" id="p-y" value="${el.y}" onchange="setProp('y',+this.value)"/></div>
+  </div>`;
+
+  if(el.type !== 'qr'){
+    html += `<div class="row2"><div><label>Width</label><input type="number" id="p-w" value="${el.w||200}" onchange="setProp('w',+this.value)"/></div>`;
+    if(el.type !== 'line') html += `<div><label>Height</label><input type="number" id="p-h" value="${el.h||50}" onchange="setProp('h',+this.value)"/></div>`;
+    html += `</div>`;
+  } else {
+    html += `<div class="prop-row"><label>Size (dots)</label><input type="number" value="${el.w||80}" onchange="setProp2('w',+this.value);setProp2('h',+this.value)"/></div>`;
+  }
+
+  if(el.type === 'text'){
+    html += `<div class="prop-row"><label>Content</label><input type="text" value="${escH(el.value||'')}" onchange="setProp('value',this.value)"/></div>`;
+    html += `<div class="row2"><div><label>Font size</label><select onchange="setProp('fontSize',+this.value)">${fontSizeOptionsHtml(el.fontSize||12)}</select></div>
+             <div><label>Bold</label><select onchange="setProp('bold',this.value==='true')"><option value="false" ${!el.bold?'selected':''}>No</option><option value="true" ${el.bold?'selected':''}>Yes</option></select></div></div>`;
+  }
+
+  if(el.type === 'barcode'){
+    html += `<div class="prop-row"><label>Value / barcode number</label><input type="text" value="${escH(el.value||'')}" onchange="setProp('value',this.value)"/></div>`;
+    html += `<div class="prop-row"><label>Symbology</label><select onchange="setProp('symbology',this.value)">
+      <option value="code128" ${el.symbology==='code128'?'selected':''}>Code 128</option>
+      <option value="ean13"   ${el.symbology==='ean13'  ?'selected':''}>EAN-13</option>
+      <option value="upca"    ${el.symbology==='upca'   ?'selected':''}>UPC-A</option>
+      <option value="code39"  ${el.symbology==='code39' ?'selected':''}>Code 39</option>
+    </select></div>`;
+    html += `<div class="row2"><div><label>Narrow bar (mils)</label><input type="number" value="${el.narrowBar||3}" min="1" max="10" onchange="setProp('narrowBar',+this.value)"/></div>
+             <div><label>Bar height (dots)</label><input type="number" value="${el.barcodeHeight||80}" onchange="setProp('barcodeHeight',+this.value)"/></div></div>`;
+  }
+
+  if(el.type === 'qr'){
+    html += `<div class="prop-row"><label>Content / URL</label><input type="text" value="${escH(el.value||'')}" onchange="setProp('value',this.value)"/></div>`;
+    html += `<div class="prop-row"><label>Magnification (1-10)</label><input type="number" value="${el.magnification||4}" min="1" max="10" onchange="setProp('magnification',+this.value)"/></div>`;
+  }
+
+  if(el.type === 'logo'){
+    html += `<div class="prop-row"><label>Logo file</label><select onchange="setProp('logoName',this.value)">${logoOptionsHtml(el.logoName)}</select></div>`;
+  }
+
+  if(el.type === 'line'){
+    html += `<div class="prop-row"><label>Line thickness (dots)</label><input type="number" value="${el.lineHeight||2}" min="1" onchange="setProp('lineHeight',+this.value)"/></div>`;
+  }
+
+  if(el.type === 'box'){
+    html += `<div class="prop-row"><label>Border thickness (dots)</label><input type="number" value="${el.thickness||2}" min="1" onchange="setProp('thickness',+this.value)"/></div>`;
+  }
+
+  html += `<button class="del-btn" onclick="deleteSelected()">Delete element</button>`;
+  panel.innerHTML = html;
+}
+
+function setProp(key, val){
+  const el=elements.find(e=>e.id===selectedId);
+  if(!el)return;
+  if(el.type === 'text' && key === 'fontSize') val = normalizeFontSize(val);
+  el[key]=val;
+  if(el.type === 'barcode' && key === 'h') el.barcodeHeight = Math.max(10, val || 10);
+  if(el.type === 'barcode' && key === 'w') el.narrowBar = estimateNarrowBarFromWidth(el);
+  if(el.type === 'qr' && (key === 'w' || key === 'h')) {
+    const qSize = Math.max(20, Math.min(el.w || 80, el.h || 80));
+    el.magnification = Math.max(1, Math.min(10, Math.round(qSize / 24)));
+  }
+  renderAll();
+  updatePropsPanel();
+}
+
+function estimateBarcodeModules(el){
+  const valueLen = String(el.value || '123456789').length;
+  const sym = el.symbology || 'code128';
+  if(sym === 'ean13' || sym === 'upca') return 95;
+  if(sym === 'code39') return Math.max(45, 13 * valueLen + 25);
+  return Math.max(55, 11 * (valueLen + 2) + 13); // code128-ish estimate
+}
+
+function estimateNarrowBarFromWidth(el){
+  const w = Math.max(20, Math.round(el.w || 120));
+  const modules = estimateBarcodeModules(el);
+  return Math.max(1, Math.min(9, Math.round(w / modules)));
+}
+function setProp2(key, val){ setProp(key,val); }
+function deleteSelected(){ elements=elements.filter(e=>e.id!==selectedId); selectedId=null; renderAll(); updatePropsPanel(); }
+function escH(s){ return (s+'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+// 
+//  Templates
+// 
+// 
+//  ZPL Preview
+// 
+async function showZPL(){
+  const payload = buildPayload(1);
+  try{
+    const r = await fetch('/api/zpl-preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const d = await r.json();
+    document.getElementById('zpl-out').textContent = d.zpl || d.error;
+    document.getElementById('modal-overlay').classList.add('open');
+  }catch(e){ alert('Error: '+e.message); }
+}
+function copyZPL(){
+  navigator.clipboard.writeText(document.getElementById('zpl-out').textContent);
+}
+
+function getLabelState(){
+  return {
+    version: 1,
+    printer: {
+      ip: document.getElementById('printer-ip').value.trim(),
+      port: parseInt(document.getElementById('printer-port').value) || 9100,
+      language: document.getElementById('printer-language').value || 'cpl'
+    },
+    label: {
+      width: getLabelW(),
+      height: getLabelH(),
+      dpi: getDPI(),
+      offsetX: parseInt(document.getElementById('print-offset-x').value) || 0,
+      offsetY: parseInt(document.getElementById('print-offset-y').value) || 0,
+      copies: parseInt(document.getElementById('copies').value) || 1,
+      elements: elements.map(({id, ...rest}) => {
+        const el = { ...rest };
+        if (el.type === 'text') el.fontSize = normalizeFontSize(el.fontSize || 12);
+        return el;
+      })
+    }
+  };
+}
+
+function downloadLabel(){
+  const payload = getLabelState();
+  const json = JSON.stringify(payload, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const now = new Date();
+  const stamp = now.toISOString().replace(/[:.]/g, '-');
+  a.href = url;
+  a.download = `label-studio-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function promptLabelUpload(){
+  const input = document.getElementById('label-file-input');
+  input.value = '';
+  input.click();
+}
+
+async function handleLabelUpload(event){
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  try{
+    const text = await file.text();
+    const data = JSON.parse(text);
+    loadLabelState(data);
+  }catch(err){
+    alert('Could not load label file: ' + err.message);
+  }
+}
+
+function loadLabelState(data){
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid label file');
+  }
+
+  const printer = data.printer || {};
+  const label = data.label || {};
+  const importedLanguage = String(printer.language || document.getElementById('printer-language').value || 'cpl').toLowerCase();
+
+  document.getElementById('printer-ip').value = printer.ip || document.getElementById('printer-ip').value;
+  document.getElementById('printer-port').value = printer.port || 9100;
+  document.getElementById('printer-language').value = importedLanguage === 'zpl' ? 'zpl' : 'cpl';
+
+  document.getElementById('label-w').value = Number.isFinite(Number(label.width)) ? String(label.width) : document.getElementById('label-w').value;
+  document.getElementById('label-h').value = Number.isFinite(Number(label.height)) ? String(label.height) : document.getElementById('label-h').value;
+  document.getElementById('label-dpi').value = importedLanguage === 'cpl' ? '203' : (String(label.dpi || document.getElementById('label-dpi').value));
+  document.getElementById('print-offset-x').value = Number.isFinite(Number(label.offsetX)) ? String(label.offsetX) : document.getElementById('print-offset-x').value;
+  document.getElementById('print-offset-y').value = Number.isFinite(Number(label.offsetY)) ? String(label.offsetY) : document.getElementById('print-offset-y').value;
+  document.getElementById('copies').value = Number.isFinite(Number(label.copies)) ? String(label.copies) : document.getElementById('copies').value;
+
+  syncDpiForLanguage();
+
+  nextId = 1;
+  elements = Array.isArray(label.elements)
+    ? label.elements.map((el, index) => {
+        const restored = { ...el, id: nextId++ };
+        if (restored.type === 'text') {
+          restored.fontSize = normalizeFontSize(restored.fontSize || 12);
+        }
+        return restored;
+      })
+    : [];
+
+  selectedId = null;
+  renderAll();
+  updatePropsPanel();
+}
+
+// 
+//  Build payload
+// 
+function buildPayload(copiesOverride){
+  const language = document.getElementById('printer-language').value || 'cpl';
+  const uiDpi = getDPI();
+  const effectiveDpi = language === 'cpl' ? 203 : uiDpi;
+  return {
+    printer:{
+      ip: document.getElementById('printer-ip').value.trim(),
+      port: parseInt(document.getElementById('printer-port').value) || 9100,
+      language
+    },
+    label:{
+      width:   getLabelW(),
+      height:  getLabelH(),
+      dpi:     effectiveDpi,
+      offsetX: parseInt(document.getElementById('print-offset-x').value) || 0,
+      offsetY: parseInt(document.getElementById('print-offset-y').value) || 0,
+      copies:  copiesOverride ?? (parseInt(document.getElementById('copies').value) || 1),
+      elements: elements.map(({id,...rest})=>rest) // strip UI id
+    }
+  };
+}
+
+function syncDpiForLanguage(){
+  const language = document.getElementById('printer-language').value || 'cpl';
+  const dpiSel = document.getElementById('label-dpi');
+  if(language === 'cpl') dpiSel.value = '203';
+  rebuildCanvas();
+}
+
+// 
+//  Print
+// 
+async function printLabel(){
+  const btn = document.getElementById('btn-print');
+  const status = document.getElementById('print-status');
+  if (window.__printStatusTimer) {
+    clearTimeout(window.__printStatusTimer);
+    window.__printStatusTimer = null;
+  }
+  btn.disabled = true;
+  status.style.display='inline-block';
+  status.className=''; status.style.background='#f0f0f0'; status.style.color='#666';
+  status.textContent='Sending...';
+  try{
+    const r = await fetch('/api/print',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(buildPayload())});
+    const d = await r.json().catch(() => ({}));
+    if(r.ok && d.success){
+      status.className='ok';
+      status.textContent='OK '+(d.message || 'Print job sent');
+      window.__printStatusTimer = setTimeout(()=>{ status.style.display='none'; }, 8000);
+    } else {
+      status.className='err';
+      status.textContent='X '+(d.error || `Print failed (${r.status})`);
+    }
+  }catch(e){
+    status.className='err';
+    status.textContent='X '+e.message;
+  }
+  btn.disabled=false;
+}
+
+// 
+//  Test connection
+// 
+async function testConnection(){
+  const dot = document.getElementById('printer-dot');
+  dot.className = 'pending';
+  try{
+    const r = await fetch('/api/test-connection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ip:document.getElementById('printer-ip').value.trim(),port:parseInt(document.getElementById('printer-port').value)||9100})});
+    const d = await r.json();
+    dot.className = d.success ? 'ok' : 'err';
+  }catch(e){ dot.className='err'; }
+}
+
+// Close modal on overlay click
+document.getElementById('modal-overlay').addEventListener('click', e=>{ if(e.target.id==='modal-overlay') e.target.classList.remove('open'); });
+
+// 
+//  Init
+// 
+syncDpiForLanguage();
+renderAll();
+loadLogos();
+</script>
+</body>
+</html>
+
