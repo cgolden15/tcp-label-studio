@@ -1,1 +1,1 @@
-put your png logos in this folder. 
+put your logos in this folder. 
